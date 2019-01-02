@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { IErrors } from '../../interfaces/IErrors';
 
+
 export interface IFormProps {
     action: string; // The http path that the form will be posted to
     render: () => React.ReactNode;
@@ -16,6 +17,13 @@ export interface IFormState {
     submitSuccess?: boolean; // Whether the form has been successfully submitted
 }
 
+export interface IFormContext extends IFormState {
+    setValues: (values: IValues) => void;
+}
+
+export const FormContext = React.createContext<IFormContext | undefined>(undefined);
+
+
 export class Form extends React.Component<IFormProps, IFormState> {
     constructor(props: IFormProps) {
         super(props);
@@ -28,6 +36,15 @@ export class Form extends React.Component<IFormProps, IFormState> {
             values
         };
     }
+
+    private setValues = (values: IValues) => {
+        this.setState({
+            values: {
+                ...this.state.values,
+                ...values
+            }
+        });
+    };
 
     /**
      * Returns whether there are any errors in the errors object that is passed in
@@ -52,6 +69,7 @@ export class Form extends React.Component<IFormProps, IFormState> {
         e: React.FormEvent<HTMLFormElement>
     ): Promise<void> => {
         e.preventDefault();
+       console.log(this.state.values);
 
         if (this.validateForm()) {
             const submitSuccess: boolean = await this.submitForm();
@@ -81,28 +99,36 @@ export class Form extends React.Component<IFormProps, IFormState> {
 
     public render() {
         const { submitSuccess, errors } = this.state;
+        const context: IFormContext = {
+            ...this.state,
+            setValues: this.setValues
+        };
+
         return(
-            <form onSubmit={ this.handleSubmit } noValidate={ true }>
-                <div className="container">
-                    { this.props.render() }
-                    <div className="form-group">
-                        <button 
-                            type="submit" 
-                            className="btn btn-primary"
-                            disabled={ this.haveErrors(errors) }>Submit</button>
+            <FormContext.Provider value={ context }>
+                <form onSubmit={ this.handleSubmit } noValidate={ true }>
+                    <div className="container">
+                        { this.props.render() }
+                        <div className="form-group">
+                            <button 
+                                type="submit" 
+                                className="btn btn-primary"
+                                disabled={ this.haveErrors(errors) }>Submit</button>
+                        </div>
+                        { submitSuccess && (
+                            <div className="alert alert-info" role="alert">
+                                The form was successfully submitted!
+                            </div>
+                        )}
+                        { submitSuccess === false && !this.haveErrors(errors) && (
+                            <div className="alert alert-danger" role="alert">
+                                Sorry, the form is invalid. Please review, adjust and try again
+                            </div>
+                        )}
                     </div>
-                    { submitSuccess && (
-                        <div className="alert alert-info" role="alert">
-                            The form was successfully submitted!
-                        </div>
-                    )}
-                    { submitSuccess === false && !this.haveErrors(errors) && (
-                        <div className="alert alert-danger" role="alert">
-                            Sorry, the form is invalid. Please review, adjust and try again
-                        </div>
-                    )}
-                </div>
-            </form>
+                </form>
+            </FormContext.Provider>
+
         );
     }
 }
